@@ -1,0 +1,17 @@
+# Built blz extension (build it yourself per docs/BUILDING_BLZ.md)
+*.so
+*.dylib
+libblz*
+
+# Third-party sources fetched only for local building (not part of this project;
+# they belong to AndroWish / blzlib and have their own licenses)
+tclblz.c
+tclrfcomm.c
+sd_dl.h
+blzlib/
+
+# Local scratch / dev probes
+probe.tcl
+pkgprobe.tcl
+*.log
+.DS_Store
