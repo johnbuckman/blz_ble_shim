@@ -1,29 +1,32 @@
 # blz_ble_shim
 
-**Run AndroWish / Android Bluetooth-LE Tcl code, unaltered, on Linux/BlueZ.**
+Run AndroWish / Android Bluetooth-LE Tcl code, unaltered, on Linux/BlueZ.
 
 `blz_ble_shim` installs an [AndroWish](https://www.androwish.org/)-compatible
 `ble` command implemented on top of undroidwish's built-in `blz` (BlueZ)
 command. Tcl programs written against AndroWish's `ble` API — for example the
-[Decent Espresso `de1app`](https://github.com/decentespresso/de1app) — then run
-on desktop/embedded Linux with **no code changes**, save one line:
+[Decent Espresso `de1app`](https://github.com/decentespresso/de1app) — run
+on desktop/embedded Linux with no code changes, save one line:
 
 ```tcl
 package require blz_ble_shim
 ```
 
-It ships with a **simulator** (`blz_sim`) backed by virtual DE1 + Skale devices,
-so you can develop and test AndroWish BLE apps on any platform — **including
-macOS — with no Bluetooth hardware at all.**
+It ships with a simulator (`blz_sim`) backed by virtual DE1 + Skale devices,
+for developing and testing AndroWish BLE apps on any platform, including
+macOS, with no Bluetooth hardware.
+
+Part of a collection of Tcl/Tk projects: **https://johnbuckman.github.io/tcltk/**
+· Project page: **https://johnbuckman.github.io/tcltk/blz-ble-shim.html**
 
 ---
 
-## Why
+## Overview
 
-AndroWish (Android) provides a rich `ble` command. undroidwish on Linux instead
-provides `blz`, a *different* BlueZ-backed command. The two speak the same
-concepts but different verbs and event shapes, so AndroWish BLE apps don't run
-as-is on Linux. This package bridges that gap: it presents the exact AndroWish
+AndroWish (Android) provides a `ble` command. undroidwish on Linux instead
+provides `blz`, a different BlueZ-backed command. The two use the same
+concepts but different verbs and event shapes, so AndroWish BLE apps do not run
+as-is on Linux. This package presents the AndroWish
 `ble` surface and translates every call/event to/from `blz`.
 
 ```
@@ -38,12 +41,12 @@ your AndroWish app ──ble …──▶ blz_ble_shim ──blz …──▶ Bl
 sequence on events `blz` never sends — the write-with-response ACK
 (`characteristic access=w`), the read-completion (`access=r`), the per-service
 discovery stream (`characteristic state=discovery`), and the notification-enable
-acknowledgement (`descriptor access=w`). The shim **synthesizes** those, delivered
+acknowledgement (`descriptor access=w`). The shim synthesizes those, delivered
 asynchronously (via `after 0`) so ordering matches Android. It also:
 
 - allocates one `blz` context per connection (plus one for scanning) and routes
   events to the right handle;
-- resolves each scanned device's **name from its raw advertising data**;
+- resolves each scanned device's name from its raw advertising data;
 - turns `blz`'s pull-style discovery (`blz services` / `blz characteristics`)
   into AndroWish's push-style discovery events;
 - fabricates the `sinstance` / `cinstance` integers AndroWish apps record and
@@ -77,11 +80,11 @@ package require blz_ble_shim
 ```
 
 On undroidwish/Linux this installs the `ble` command over the real `blz`. The
-shim is safe everywhere:
+shim is inert where it does not apply:
 
-- if a **real `ble`** already exists (Android; macOS CoreBluetooth), it defers
+- if a real `ble` already exists (Android; macOS CoreBluetooth), it defers
   and does not override it;
-- if **`blz` is absent** (not undroidwish-on-Linux), it stays inert;
+- if `blz` is absent (not undroidwish-on-Linux), it stays inert;
 - it also does `package provide ble 1.0`, so an app's own `package require ble`
   is satisfied.
 
@@ -108,8 +111,8 @@ wish8.6 examples/run_bledemo_sim.tcl        # full GUI BLE debugger, no radio
 ```
 
 `examples/bledemo.tcl` is a LightBlue-style BLE debugger (scan → connect →
-browse services → read / subscribe / write). It is an unmodified AndroWish app —
-proof that the shim runs real apps as-is.
+browse services → read / subscribe / write). It is an unmodified AndroWish app,
+run as-is on the shim.
 
 ![BLE debugger running on the shim](docs/bledemo.png)
 
@@ -121,7 +124,7 @@ tclsh test/test_shim_e2e.tcl     # 27 end-to-end checks over the simulated DE1 +
 ```
 
 The end-to-end suite exercises the full app flow: scan → name-resolve → connect
-→ discovery → enable/notify → **write-ACK-gated writes** → read → concurrent
+→ discovery → enable/notify → write-ACK-gated writes → read → concurrent
 DE1+Skale event routing → disconnect → UUID helpers.
 
 ## API
@@ -176,6 +179,16 @@ The write-with-response ACK is synthesized after `blz write` returns; on rare
 back-to-back-ack-gated flows (e.g. firmware upload) validate timing on real
 hardware.
 
+## Status
+
+The shim is built and verified against the real `blz` contract: the mock unit
+suite passes 32/32 and the simulated end-to-end suite 27/27. The real `blz`
+extension has been compiled from AndroWish source and driven by the shim
+end-to-end (`ble state` → `poweredOn`, UUID helpers, real BlueZ error paths),
+and the unmodified `bledemo` GUI runs live on Linux under native `wish8.6` +
+real `blz` + the shim. The remaining step is a live scan/connect against a
+physical peripheral, which needs Bluetooth hardware or an emulated LE device.
+
 ## Building the real `blz` (Linux)
 
 undroidwish's prebuilt binaries do **not** bundle `blz`; it lives in the
@@ -187,5 +200,5 @@ step-by-step recipe (deps, the AndroWish-vendored `blzlib`, the `-lsystemd
 
 [Tcl/Tk license](LICENSE) (BSD-style). Copyright © 2026 John Buckman.
 
-Built to bring AndroWish Bluetooth apps — like the Decent Espresso `de1app` — to
+Brings AndroWish Bluetooth apps — such as the Decent Espresso `de1app` — to
 Linux; usable by any Tcl program that wants the AndroWish `ble` API on BlueZ.
