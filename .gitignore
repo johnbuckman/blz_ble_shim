@@ -15,3 +15,6 @@ probe.tcl
 pkgprobe.tcl
 *.log
 .DS_Store
+
+# local revert artifact
+*.sync-backup

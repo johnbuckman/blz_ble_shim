@@ -1,0 +1,53 @@
+--- /tmp/tclblz.c.bak	2026-08-13 12:18:14.866497037 +0200
++++ /home/john/uwtest/blzbuild/tclblz.c	2026-08-13 12:27:36.447665600 +0200
+@@ -447,7 +447,6 @@
+ TimerHandler(ClientData clientData)
+ {
+     BLZClient *blz = (BLZClient *) clientData;
+-
+     blz_handle_read(blz->ctx);
+     blz->timer = NULL;
+     SetupHandlers(blz);
+@@ -478,6 +477,13 @@
+ 	Tcl_DeleteTimerHandler(blz->timer);
+ 	blz->timer = NULL;
+     }
++    /* While scanning or connected, guarantee a periodic pump so sd_bus is
++     * serviced even if the notifier never delivers a POLLIN for its fd. */
++    if (blz->scanning || blz->connected) {
++	if (ms < 0 || ms > 200) {
++	    ms = 200;
++	}
++    }
+     if (ms >= 0) {
+ 	blz->timer = Tcl_CreateTimerHandler(ms, TimerHandler,
+ 					    (ClientData) blz);
+=====BLZLIB=====
+--- /tmp/blzlib.c.bak	2026-08-13 12:18:14.866956538 +0200
++++ /home/john/uwtest/blzbuild/blzlib.c	2026-08-13 12:27:36.448851647 +0200
+@@ -1047,10 +1047,21 @@
+ 
+ void blz_handle_read(blz_ctx* ctx)
+ {
+-	int r = sd_bus_process(ctx->bus, NULL);
+-	if (r < 0) {
+-		LOG_ERR("BLZ: Handle read process error: %s", strerror(-r));
+-		return;
++	int r, i;
++	/* Drain a bounded burst per call: sd_bus_process handles at most one
++	 * message per call and returns >0 while work remains. During active
++	 * BLE discovery BlueZ streams continuous RSSI PropertiesChanged, so an
++	 * unbounded loop would never return; cap it and let the periodic pump
++	 * / fd handler pick up the rest, keeping the Tcl event loop responsive. */
++	for (i = 0; i < 20; i++) {
++		r = sd_bus_process(ctx->bus, NULL);
++		if (r < 0) {
++			LOG_ERR("BLZ: Handle read process error: %s", strerror(-r));
++			return;
++		}
++		if (r == 0) {
++			break;
++		}
+ 	}
+ }
+ 
